@@ -22,14 +22,15 @@ $AppRoot = "D:\WebApps"				#アプリケーションのインストール場所
 #--------------------------------------------------------------------------------
 # DATA DEFINITION start start start
 # 
-$InstJava  = [PSCustomObject]@{fSetup=$false;  mod="jdk";    folder="microsoft-jdk-17.0.15-windows-x64"; subFolder="jdk-17.0.15+6"; symDst=$JDKRoot}
-$InstHttpd = [PSCustomObject]@{fSetup=$true;   mod="httpd";  folder="httpd-2.4.63";                      subFolder="Apache24";      symDst=$null   }
-$InstTomcat= [PSCustomObject]@{fSetup=$true;   mod="tomcat"; folder="apache-tomcat-11.0.5";              subFolder=$null;           symDst=$null   }
-$InstSolr  = [PSCustomObject]@{fSetup=$true;   mod="solr";   folder="solr-8.11.4";                       subFolder=$null;           symDst=$null   }
-$InstApp   = [PSCustomObject]@{fSetup=$true;   mod="MyApps"; folder="MyApps";                            subFolder=$null;           symDst=$null   }
+$InstJava  = [PSCustomObject]@{fSetup=$true; mod="jdk";    folder="jdk-17.0.16+8";		  subFolder=$null;	   symDst=$JDKRoot}
+
+# --------------
+$InstHttpd = [PSCustomObject]@{fSetup=$true; mod="httpd";  folder="httpd-2.4.63";         subFolder="Apache24";symDst=$null   }
+$InstTomcat= [PSCustomObject]@{fSetup=$true; mod="tomcat"; folder="apache-tomcat-11.0.5"; subFolder=$null;     symDst=$null   }
+$InstSolr  = [PSCustomObject]@{fSetup=$true; mod="solr";   folder="solr-8.11.4";          subFolder=$null;     symDst=$null   }
+$InstApp   = [PSCustomObject]@{fSetup=$true; mod="MyApps"; folder="MyApps";               subFolder=$null;     symDst=$null   }
 
 $folderDefList = @(
-  [PSCustomObject]@{inst=$InstJava	}
   [PSCustomObject]@{inst=$InstHttpd	}
   [PSCustomObject]@{inst=$InstTomcat}
   [PSCustomObject]@{inst=$InstSolr	}
@@ -66,9 +67,9 @@ else {
 	Write-Host "Error"
 }
 
-Write-Host ('$MY_SELF=      ' + $MY_SELF)
-Write-Host ('$VERSION_NAME= ' + $VERSION_NAME)
-Write-Host ('$PKG_SETUP=    ' + $PKG_SETUP )
+#	Write-Host ('$MY_SELF=      ' + $MY_SELF)
+#	Write-Host ('$VERSION_NAME= ' + $VERSION_NAME)
+#	Write-Host ('$PKG_SETUP=    ' + $PKG_SETUP )
 
 #利用変数はcustom object(sParam)で定義。
 #PowerShell 5.1ではdynamicに変数定義できないので。(7.1以降ならできる)
@@ -82,7 +83,6 @@ $sParam = [PSCustomObject]@{
 	pkgMod				=   ""	#	Setup.ps1として動作したときのみ設定する
 	pkgInst				=   ""	#	Setup.ps1として動作したときのみ設定する
 	pkgSetup			=   ""	#	Setup.ps1として動作したときのみ設定する
-	path_JDK		    =   $JDKRoot							#JDKのSymbolicLink
 	TargetFW			=   $AppRoot + "\" + $FolderFramework	#OSSのSymbolicLink場所
 	TargetInst			=   $AppRoot + "\" + $FolderInstance	#OSSが更新するファイル、フォルダーの場所
 	TargetMod			=   $AppRoot + "\" + $FolderModules		#OSSをインストールする場所
@@ -132,15 +132,19 @@ function ShowUsage {
 	Write-Host "   $FileName [command]"     
 	Write-Host "Examples: "
 	Write-Host ("   " + "$FileName help      " + "   " +     "usageを表示 ")
-	Write-Host ("   以下のコマンドは 管理者権限で実行する必要があります  ")
+	Write-Host ("   " + "$FileName dump      " + "   " +     "内部定義変数をdump ")
+	Write-Host ("");
+	Write-Host ("以下のコマンドは 管理者権限で実行する必要があります  ")
 	if($fPkg) {
-		Write-Host ("   " + "$FileName datainit  "  +  "  " + "初期データをセットアップします。初めてインストールするとき一度だけ行います。")
+		Write-Host ("   " + "$FileName initdata  "  +  "  " + "初期データをセットアップします。初めてインストールするとき一度だけ行います。")
 		Write-Host ("   " + "$FileName setup     "  +  "  " + "システムをインストールします。 "	)
+		Write-Host ("   " + "$FileName instjdk   "  +  "  " + "JDKをインストールします。")
 	}
 	else {
 		Write-Host ("   " + "$FileName setsymlink" + "   " + "インストール済みのモジュールのシンボリックリンクのみ行います "	)
 		Write-Host ("   " + "$FileName delsymlink" + "   " + "インストール済みのモジュールのシンボリックリンクの削除を行います "	)
 		Write-Host ("   " + "$FileName delall    " + "   " + "インストール済みのモジュールの削除を行います "	)
+		Write-Host ("   " + "$FileName deljdk   "  +  "  " + "JDKを削除します。")
 	}
 }
 
@@ -159,7 +163,6 @@ function DoDumpParam {
 	Write-Host ('$pkgMod         = ' + $($setupParam.pkgMod          ) )
 	Write-Host ('$pkgInst        = ' + $($setupParam.pkgInst         ) )
 	Write-Host ('$pkgSetup       = ' + $($setupParam.pkgSetup        ) )
-	Write-Host ('$path_JDK       = ' + $($setupParam.path_JDK        ) )
 	Write-Host ('$TargetFW       = ' + $($setupParam.TargetFW        ) )
 	Write-Host ('$TargetInst     = ' + $($setupParam.TargetInst      ) )
 	Write-Host ('$TargetMod      = ' + $($setupParam.TargetMod       ) )
@@ -169,6 +172,12 @@ function DoDumpParam {
 	Write-Host ('$TargetSetupSym = ' + $($setupParam.TargetSetupSym  ) )
 	Write-Host ('$versionName    = ' + $($setupParam.versionName     ) )
 	Write-Host ('$f_pkgSetup     = ' + $($setupParam.f_pkgSetup      ) )
+
+	$newFolderDefList = $folderDefList
+	$newFolderDefList = ,([PSCustomObject]@{inst=$InstJava}) + $newFolderDefList
+	foreach($val in $newFolderDefList) {
+		Write-Host "$($val.inst.mod): folder=$($val.inst.folder) subFolder=$($val.inst.subFolder) symDst=$($val.inst.symDst)"
+	}
 }
 
 
@@ -411,7 +420,7 @@ function DoCommand_4_FolderDef {
 	# $folderDefList には 
 	$index = 0
 	foreach ($pair in $defList) {
-		Write-Host "[$index]"
+		# Write-Host "[$index]"
 		$mod	= $($pair.inst.mod)
 		$fSetup = $($pair.inst.fSetup)
 		if($setupParam.f_pkgSetup) {
@@ -436,11 +445,11 @@ function DoCommand_4_FolderDef {
 			$symDst = $($pair.inst.symDst)
 		}
 	
-		Write-Host "    mod   = $mod"
-		Write-Host "    src   = $src"
-		Write-Host "    dst   = $dst"
-		Write-Host "    symSrc= $symSrc"
-		Write-Host "    symDst= $symDst"
+		#	Write-Host "    mod   = $mod"
+		#	Write-Host "    src   = $src"
+		#	Write-Host "    dst   = $dst"
+		#	Write-Host "    symSrc= $symSrc"
+		#	Write-Host "    symDst= $symDst"
 	
 		if($fSetup ) {
 			#指定されたcommandNameをコマンドとして実行(&)
@@ -476,7 +485,7 @@ function FnCreateFolder {
 
 # ------------------------------------------------------------
 # Function: DoInitData
-#
+# ------------------------------------------------------------
 function DoInitData {
 	param (
 		[pscustomobject]$setupParam
@@ -494,14 +503,15 @@ function DoInitData {
 		Rename-Item -Path $setupParam.TargetInst -NewName $backup
 	}		
 	FnCreateFolder -folder $setupParam.TargetInst
-	Write-Host "Test"
 	$src = $setupParam.pkgInst + "\*"
-	Write-Host "Test2"
 	Write-Host "$src -> $($setupParam.TargetInst) にコピーします" 
 	Copy-Item -Path $src -Destination $setupParam.TargetInst -Recurse -Force	
 
 }
 
+# ------------------------------------------------------------
+# Function: DoDelData
+# ------------------------------------------------------------
 function DoDelData {
 	param (
 		[pscustomobject]$setupParam
@@ -511,10 +521,9 @@ function DoDelData {
 
 }
 
-
 # ------------------------------------------------------------
 # Function: DoSetup
-#
+# ------------------------------------------------------------
 function DoSetup {
 	param (
 		[pscustomobject]$setupParam
@@ -566,7 +575,7 @@ function DoSetup {
 
 # ------------------------------------------------------------
 # Function: DoUnInstall
-#
+# ------------------------------------------------------------
 function DoUnInstall {
 	param (
 		[pscustomobject]$setupParam
@@ -576,10 +585,72 @@ function DoUnInstall {
 	Write-Host "$($setupParam.TargetSetupInst) を削除します。"
 
 	if( Test-Path -LiteralPath $setupParam.TargetSetupInst) {
-		# Remove-Item -LiteralPath $setupParam.TargetSetupInst) {
+		Remove-Item -LiteralPath $setupParam.TargetSetupInst
 	}
 	else {
 		Write-Host "   $($setupParam.TargetSetupInst) が存在しません。"
+	}
+}
+
+# ------------------------------------------------------------
+# Function:	DoSetSymLink
+# ------------------------------------------------------------
+function DoSetSymLink {
+	param (
+		[pscustomobject]$setupParam
+	)
+	Write-Host "システムのモジュールのシンボリックリンクを再設定します。"
+	DoCommand_4_FolderDef -commandName "FnReSymLink" -setupParam $setupParam -defList $folderDefList
+
+}
+
+# ------------------------------------------------------------
+# Function: DoDelSymLink
+# ------------------------------------------------------------
+function DoDelSymLink {
+	param (
+		[pscustomobject]$setupParam
+	)
+	Write-Host "システムのモジュールのシンボリックリンクを削除します。"
+	DoCommand_4_FolderDef -commandName "FnDelSymLink" -setupParam $setupParam -defList $folderDefList
+}
+
+# ------------------------------------------------------------
+# Function: DoInstJDK
+# ------------------------------------------------------------
+function DoInstJDK {
+	param (
+		[pscustomobject]$setupParam
+	)
+	Write-Host "JDKをインストールします。"
+	if($setupParam.f_pkgSetup) {
+		$list = @(
+			[PSCustomObject]@{inst=$InstJava}
+		)
+		DoCommand_4_FolderDef -commandName "FnCopy_n_SymLink" -setupParam $setupParam -defList $list
+
+		Write-Host "環境変数 %JAVA_HOME% に $($InstJava.symDst)を設定します"
+		[Environment]::SetEnvironmentVariable("JAVA_HOME", $InstJava.symDst, "Machine")
+	}
+}
+
+# ------------------------------------------------------------
+# Function: DoDelJDK
+# ------------------------------------------------------------
+function DoDelJDK {
+	param (
+		[pscustomobject]$setupParam
+	)
+	Write-Host "JDKをアンインストールします。"
+	if($setupParam.f_pkgSetup) {
+	}
+	else {
+		$list = @(
+			[PSCustomObject]@{inst=$InstJava}
+		)
+		DoCommand_4_FolderDef -commandName "FnDelFolder" -setupParam $setupParam -defList $list
+		Write-Host "環境変数 %JAVA_HOME% を削除します。"
+		[Environment]::SetEnvironmentVariable("JAVA_HOME", $null, "Machine")
 	}
 }
 
@@ -589,136 +660,17 @@ function DoUnInstall {
 #################################################################################
 
 switch($command) {
-	"help"		{ ShowUsage $sParam.myScriptName $sParam.f_pkgSetup; exit 1}
-	"dump"		{ DoDumpParam  -setupParam $sParam;	exit 0}
-	"dummy"		{ exit 1}
-	"initdata"	{ DoInitData   -setupParam $sParam;	exit 0}
-	"deldata"	{ DoDelData    -setupParam $sParam;	exit 0}
-	"setup"		{ DoSetup      -setupParam $sParam;	exit 0}
-	"setsymlink"{ DoSetSymLink -setupParam $sParam;	exit 0}
-	"delsymlink"{ DoDelSymLink -setupParam $sParam;	exit 0}
-	"delall"	{ DoUnInstall  -setupParam $sParam;	exit 0}
-	default		{ ShowUsage $sParam.myScriptName $sParam.f_pkgSetup; exit 1}
+	"help"		 { ShowUsage $sParam.myScriptName $sParam.f_pkgSetup; exit 1}
+	"dump"		 { DoDumpParam  -setupParam $sParam;	exit 0}
+	"dummy"		 { exit 1}
+	"initdata"	 { DoInitData   -setupParam $sParam;	exit 0}
+	"setup"		 { DoSetup      -setupParam $sParam;	exit 0}
+	"instjdk"	 { DoInstJDK    -setupParam $sParam;	exit 0}
+	"deljdk"	 { DoDelJDK     -setupParam $sParam;	exit 0}
+	"setsymlink" { DoSetSymLink -setupParam $sParam;	exit 0}
+	"delsymlink" { DoDelSymLink -setupParam $sParam;	exit 0}
+	"delall"	 { DoUnInstall  -setupParam $sParam;	exit 0}
+	default		 { ShowUsage $sParam.myScriptName $sParam.f_pkgSetup; exit 1}
 }
 
 exit 0
-
-
-#------------------------------------------------------------
-#$commandが以下の時はここにくる。
-#	"setup"		
-#	"copyonly"	
-#	"setsymlink"
-#	"delsymlink"
-#	"delall"	
-# そして 管理者権限でなければエラーにする。
-
-if( -not (CheckAdmin) ) {
-	exit 1
-}
-
-#	#--------------------------------------------------------------------------------
-#	#すべての Inst***に対しで処理。setup/delallの場合はその後後処理を行う
-#	$index = 0
-#	foreach ($pair in $pairList) {
-#		Write-Host "[$index]"
-#		$mod	= $($pair.inst.mod)
-#		$fSetup = $($pair.inst.fSetup)
-#		if($sParam.f_pkgSetup) {
-#			$src    = $sParam.pkgMod + "\" + $($pair.inst.folder)
-#		}
-#		else {
-#			$src    = $null
-#		}
-#		$dst    = $sParam.TargetMod + "\" + $($pair.inst.folder)
-#	
-#		# symlinkの元を作成		
-#		$symSrc = $dst
-#		if($($pair.inst.subfolder) -ne $null) {
-#			# subFolderが指定されていたらそれを追加してlink元とする。
-#			Write-Host ('    $($pair.inst.subfolder)' + "="  + $($pair.inst.subfolder))
-#			$symSrc = $symSrc + "\" + $($pair.inst.subfolder)
-#		}
-#		if($($pair.inst.symDst) -eq $null) {
-#			$symDst = $sParam.TargetFW + "\" + $($pair.inst.mod)
-#		}
-#		else {
-#			$symDst = $($pair.inst.symDst)
-#		}
-#	
-#		Write-Host "    mod   = $mod"
-#		# Write-Host "    src   = $src"
-#		# Write-Host "    dst   = $dst"
-#		# Write-Host "    symSrc= $symSrc"
-#		# Write-Host "    symDst= $symDst"
-#	
-#		if($fSetup ) {
-#			& $commandFn -src $src -dst $dst -symSrc $symSrc -symDst $symDst
-#		}
-#		else {
-#			Write-Host ('   ' + $mod  + 'はセットアップ対象になっていないのでスキップします')
-#		}
-#		$index++
-#	}
-
-#あと処理
-switch($command) {
-	"setup"
-		{
-			# Setup.ps1を d:\WebApps\Setup\Setup_verXXX.ps1に
-			# Setup_Func.ps1を d:\WebApps\Setup\Setup_Func_verXXX.ps1に
-			# コピーする。
-
-			$setupMainSrc = $sParam.pkgDir + "\" + "Setup.ps1"
-			$setupFuncSrc = $sParam.pkgDir + "\" + "Setup_Func.ps1"
-
-			$setupMainDst = $sParam.TargetSetup + "\" + "Setup_" + $sParam.versionName + ".ps1"
-			$setupFuncDst = $sParam.TargetSetup + "\" + "Setup_" + $sParam.versionName + "_Func.ps1"
-
-			$symSetupSrc  = $sParam.TargetSetupInst
-			$symSetupDst  = $sParam.TargetSetupSym
-			Write-Host ('   $symSetupSrc = ' + $symSetupSrc )
-			Write-Host ('   $symSetupDst = ' + $symSetupDst )
-			if (Test-Path $sParam.TargetSetupInst) {
-
-			}
-			else {
-				New-Item -Path $sParam.TargetSetupInst -ItemType Directory
-			}			
-
-			# e:\pkg\verXXX\Setup/*.* -> d:\WebApps\Setup\verXXX\*.* にコピー
-			$srcSetup = $sParam.pkgSetup
-			Write-Host "   $srcSetup を $($sParam.TargetSetupInst) にコピーします。"
-
-			Get-ChildItem -Path $srcSetup -File | ForEach-Object {
-			    Copy-Item $_.FullName -Destination $sParam.TargetSetupInst
-			}
-
-			Write-Host "   $setupMainSrc を $setupMainDst にコピーします。"
-			Copy-Item $setupMainSrc -Destination $setupMainDst
-
-			Write-Host "   $symSetupDst と $symSetupSrc にシンボリックリンクを貼ります。"
-
-			if(IsReparsePointFolder -path $symSetupDst) {
-				Write-Debug "$symSetupDst は既にシンボリックリンクが貼られています"
-			}
-			Write-Debug "test test"
-			cmd /c mklink /D "$symSetupDst" "$symSetupSrc"
-			break
-		}
-	"delall"	{
-			# d:\WebApps\Setup\verXXXを削除する。
-			Write-Host "$($sParam.TargetSetupInst) を削除します。"
-			if( Test-Path -LiteralPath $sParam.TargetSetupInst) {
-				# Remove-Item -LiteralPath $sParam.TargetSetupInst) {
-			}
-			else {
-				Write-Host "   $($sParam.TargetSetupInst) が存在しません。"
-			}
-			break
-
-		}
-	}
-
-exit 0
-

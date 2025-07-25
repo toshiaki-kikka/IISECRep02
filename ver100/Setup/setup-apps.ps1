@@ -40,12 +40,12 @@ if ([string]::IsNullOrEmpty($command)) {
 switch($command) {
 	"start"
 		{
-			Write-Host "アプリを開始します(dummy)"
+			Write-Host "アプリを開始します"
 			break
 		}
 	"stop"
 		{
-			Write-Host "アプリを終了します(dummy)"
+			Write-Host "アプリを終了します"
 			break
 		}
 	default
